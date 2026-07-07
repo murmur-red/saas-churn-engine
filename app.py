@@ -119,7 +119,7 @@ hr { border-color:#e7e5e4 !important; }
 st.caption("Band is the authoritative triage verdict; score is a comparable rank; coverage = share of "
            "signal weight actually used.")
 
-st.markdown('<div id="methodology"></div>', unsafe_allow_html=True)   # anchor for the Methodology nav link
+st.subheader("Methodology", anchor="methodology")   # native, reliable anchor for the nav link
 with st.expander("📘 Start here — what this is, how to connect your data, and what each metric means", expanded=False):
     st.markdown("""
 **What this is.** A deterministic churn engine for subscription SaaS — *no AI black box*. It reads
