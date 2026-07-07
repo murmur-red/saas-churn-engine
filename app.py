@@ -180,17 +180,20 @@ else:
     query = qcol.text_area("SQL query (returns one row per account)", DEMO_QUERY, height=110)
     if "p1_mapping" not in st.session_state:
         st.session_state["p1_mapping"] = json.dumps(DEMO_MAPPING, indent=2)
-    if qcol.button("🪄 Auto-map columns with AI (claude-sonnet-5)"):
+    byok = qcol.text_input("Your Anthropic API key (bring-your-own — never stored, used only for this call)",
+                           type="password", placeholder="sk-ant-…")
+    if qcol.button("🪄 Auto-map columns with AI (claude-sonnet-5)", disabled=not byok):
         try:
             _rows = SQLConnector(_demo_db(), query).fetch()
             _cols = list(_rows[0].keys()) if _rows else []
             with st.spinner("Asking the model to match your columns to our fields…"):
-                sug = suggest_mapping(_cols, sample_rows=_rows)
+                sug = suggest_mapping(_cols, sample_rows=_rows, api_key=byok)
             st.session_state["p1_mapping"] = json.dumps(sug["mapping"], indent=2)
             qcol.success(f"AI mapped {len(sug['mapping'])} of {len(_cols)} columns — review on the right, then edit if needed.")
         except Exception as e:  # noqa: BLE001
             qcol.error(f"Auto-map failed: {e}")
-    qcol.caption("AI *suggests* the mapping (validated to real fields); you review it. The churn engine stays deterministic.")
+    qcol.caption("🔑 Optional AI helper — runs on **your** key so the public demo never spends the host's credits. "
+                 "It only *suggests* the mapping (validated to real fields); you review it, and the churn engine stays deterministic.")
     mapping_json = mcol.text_area("Field mapping — our_field: their_column", height=200, key="p1_mapping")
     do_enrich = st.checkbox("Enrich company-health gap (3rd-party; first-party data wins)", value=True)
     try:

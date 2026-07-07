@@ -49,9 +49,12 @@ Rules:
 """
 
 
-def _default_llm(prompt: str, model: str) -> str:
+def _default_llm(prompt: str, model: str, api_key: str = "") -> str:
     import anthropic
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+    if not key:
+        raise RuntimeError("No Anthropic API key — provide your own key to auto-map with AI.")
+    client = anthropic.Anthropic(api_key=key)
     kwargs = dict(model=model, max_tokens=2000,
                   system=[{"type": "text", "text": SYSTEM, "cache_control": {"type": "ephemeral"}}],
                   messages=[{"role": "user", "content": prompt}])
@@ -66,7 +69,8 @@ def _default_llm(prompt: str, model: str) -> str:
 
 
 def suggest_mapping(source_columns: list[str], sample_rows: Optional[list[dict]] = None,
-                    model: str = "claude-sonnet-5", llm: Optional[Callable[[str, str], str]] = None) -> dict[str, Any]:
+                    model: str = "claude-sonnet-5", llm: Optional[Callable[[str, str], str]] = None,
+                    api_key: str = "") -> dict[str, Any]:
     """Returns {'mapping': {our_field: their_column}, 'unmapped_sources': [...], 'targets': [...]}.
     The mapping is validated: only real target fields + real source columns survive."""
     targets = set(target_fields())
@@ -76,7 +80,7 @@ def suggest_mapping(source_columns: list[str], sample_rows: Optional[list[dict]]
     prompt = (f"TARGET FIELDS:\n{_target_catalog()}\n\nSOURCE COLUMNS:\n"
               + ", ".join(source_columns) + samples + "\n\nReturn the mapping JSON.")
 
-    text = (llm or _default_llm)(prompt, model)
+    text = (llm or (lambda p, m: _default_llm(p, m, api_key)))(prompt, model)
     if text.startswith("```"):
         text = text.split("```")[1]
         if text.startswith("json"):
