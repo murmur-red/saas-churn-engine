@@ -76,4 +76,4 @@ authoritative triage signal; `risk_score` is a secondary comparable rank.
 
 ---
 
-<sub>Built with Claude Code. Sibling: [ai-spend-control](https://github.com/murmur-red/ai-spend-control).</sub>
+<sub>Sibling project: [ai-spend-control](https://github.com/murmur-red/ai-spend-control).</sub>
