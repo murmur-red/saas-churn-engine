@@ -120,7 +120,7 @@ st.caption("Band is the authoritative triage verdict; score is a comparable rank
            "signal weight actually used.")
 
 st.subheader("Methodology", anchor="methodology")   # native, reliable anchor for the nav link
-with st.expander("📘 Start here — what this is, how to connect your data, and what each metric means", expanded=False):
+with st.expander("📘 Start here — what this is, how to connect your data, and what each metric means", expanded=True):
     st.markdown("""
 **What this is.** A deterministic churn engine for subscription SaaS — *no AI black box*. It reads
 your customer signals, applies transparent rules, and tells you **which accounts are at risk and why**.
