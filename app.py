@@ -118,8 +118,27 @@ hr { border-color:#e7e5e4 !important; }
 st.caption("Band is the authoritative triage verdict; score is a comparable rank; coverage = share of "
            "signal weight actually used.")
 
+with st.expander("🚀 How to use this — no coding, just a spreadsheet", expanded=True):
+    st.markdown("""
+**1. You're seeing sample customers.** Just scroll down to explore how it works.
+
+**2. To load YOUR customers → look at the left sidebar.** Under **“Data source”** (top-left), click **“Upload a CSV”**.
+
+**3. Click the “⬇️ Download CSV template” button** that appears. Open it in **Excel or Google Sheets**.
+Keep the column headers and add **one row per customer**:
+- *account name · ARR (yearly $) · seats you sold · seats actually used · adoption % · latest NPS · renewal date · owner*
+- 📍 **Where to find these numbers:** your CRM — **Salesforce** or **HubSpot** — or your Customer-Success spreadsheet.
+
+**4. Save the file as “.csv”**, then click **“Browse files”** and pick it. Your accounts load instantly.
+
+**5. In the left sidebar, tick the checkboxes** for the signals you care about — the risk table updates as you click.
+**🔴 red = act now**, 🟡 = watch, 🟢 = healthy.
+
+*No passwords, no technical setup — it's a spreadsheet upload, and your file is never stored.*
+""")
+
 st.subheader("Methodology", anchor="methodology")   # native, reliable anchor for the nav link
-with st.expander("📘 Start here — what this is, how to connect your data, and what each metric means", expanded=True):
+with st.expander("📘 Start here — what this is, how to connect your data, and what each metric means", expanded=False):
     st.markdown("""
 **What this is.** A deterministic churn engine for subscription SaaS — *no AI black box*. It reads
 your customer signals, applies transparent rules, and tells you **which accounts are at risk and why**.
@@ -162,7 +181,8 @@ for cat in CATEGORIES:
 
 # ── Data source ──────────────────────────────────────────────────────────────
 st.sidebar.markdown("### Data source")
-source = st.sidebar.radio("Where does the data come from?", ["Sample file", "Connect a database (demo)"])
+source = st.sidebar.radio("Where does the data come from?",
+                          ["Sample file", "Upload a CSV", "Connect a database (demo)"])
 
 if source == "Sample file":
     try:
@@ -170,6 +190,30 @@ if source == "Sample file":
     except Exception as e:  # noqa: BLE001
         st.error(f"Could not load data: {e}")
         st.stop()
+elif source == "Upload a CSV":
+    st.markdown("#### 📄 Upload your accounts (CSV) — no coding needed")
+    import os
+    import tempfile
+    with open("subscription_accounts.csv") as _tf:
+        st.download_button("⬇️ Download CSV template", _tf.read(), "accounts_template.csv", "text/csv")
+    st.caption("Open the template in Excel or Google Sheets, keep the column headers, add one row per "
+               "customer, save as **.csv**, then upload it below. Bad rows are flagged, never faked.")
+    up = st.file_uploader("Upload your customer accounts (CSV)", type=["csv"])
+    if up is None:
+        st.info("⬆️ Upload a CSV to continue, or pick **Sample file** in the sidebar to see it working.")
+        st.stop()
+    _tmp = tempfile.NamedTemporaryFile(suffix=".csv", delete=False)
+    _tmp.write(up.getvalue())
+    _tmp.close()
+    try:
+        _res = load(_tmp.name, CFG, report_path="/tmp/p1_upload_report.json")
+        accounts, report = _res["accounts"], _res["report"]
+    except Exception as e:  # noqa: BLE001
+        st.error(f"Could not read that CSV: {e}")
+        st.stop()
+    finally:
+        os.unlink(_tmp.name)
+    st.success(f"Loaded {len(accounts)} account(s) from your file.")
 else:
     st.markdown("#### 🔌 Connect a database — no manual entry")
     st.caption("`SQLConnector` runs against any DB-API connection (Snowflake/Postgres/BigQuery/Redshift "
