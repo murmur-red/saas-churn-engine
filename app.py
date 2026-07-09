@@ -22,6 +22,7 @@ from connectors.sql import SQLConnector
 from mapping import FieldMapping
 from enrichment import enrich, static_provider
 from schema_mapper import suggest_mapping
+from sources import read_upload, fetch_gsheet
 
 URGENCY_ICON = {"URGENT": "🚨", "ELEVATED": "🟠", "STRATEGIC": "🔵", "OK": "🟢"}
 
@@ -122,14 +123,18 @@ with st.expander("🚀 How to use this — no coding, just a spreadsheet", expan
     st.markdown("""
 **1. You're seeing sample customers.** Just scroll down to explore how it works.
 
-**2. To load YOUR customers → look at the left sidebar.** Under **“Data source”** (top-left), click **“Upload a CSV”**.
+**2. To load YOUR customers → look at the left sidebar, under “Data source”.** Pick how you want to bring data in:
+- **📄 Upload a file** — a **CSV or Excel** file from your computer.
+- **🔗 Google Sheet** — paste a share link (no download needed).
+- **🛢️ Database / SQL** — for your tech team (advanced).
 
-**3. Click the “⬇️ Download CSV template” button** that appears. Open it in **Excel or Google Sheets**.
-Keep the column headers and add **one row per customer**:
+**3. Whichever you pick, click “⬇️ Download CSV template” first.** Open it in **Excel or Google Sheets**,
+keep the column headers, and add **one row per customer**:
 - *account name · ARR (yearly $) · seats you sold · seats actually used · adoption % · latest NPS · renewal date · owner*
 - 📍 **Where to find these numbers:** your CRM — **Salesforce** or **HubSpot** — or your Customer-Success spreadsheet.
 
-**4. Save the file as “.csv”**, then click **“Browse files”** and pick it. Your accounts load instantly.
+**4. Bring it in:** for a file, click **“Browse files”** and pick it. For a Google Sheet, set it to
+**Share → Anyone with the link → Viewer**, then paste the link. Your accounts load instantly.
 
 **5. In the left sidebar, tick the checkboxes** for the signals you care about — the risk table updates as you click.
 **🔴 red = act now**, 🟡 = watch, 🟢 = healthy.
@@ -182,38 +187,60 @@ for cat in CATEGORIES:
 # ── Data source ──────────────────────────────────────────────────────────────
 st.sidebar.markdown("### Data source")
 source = st.sidebar.radio("Where does the data come from?",
-                          ["Sample file", "Upload a CSV", "Connect a database (demo)"])
+                          ["🧪 Public sandbox (demo)", "📄 Upload a file (CSV / Excel)",
+                           "🔗 Google Sheet (link)", "🛢️ Database / SQL (advanced)"])
 
-if source == "Sample file":
+
+def _accounts_from_df(df):
+    """Validate an uploaded/fetched table through the same adapter as a file (rejects bad rows)."""
+    import os
+    import tempfile
+    _tmp = tempfile.NamedTemporaryFile(suffix=".csv", delete=False)
+    df.to_csv(_tmp.name, index=False)
+    _tmp.close()
+    try:
+        _res = load(_tmp.name, CFG, report_path="/tmp/p1_upload_report.json")
+        return _res["accounts"], _res["report"]
+    finally:
+        os.unlink(_tmp.name)
+
+
+if source.startswith("🧪"):
     try:
         accounts, report = _load("subscription_accounts.csv")
     except Exception as e:  # noqa: BLE001
         st.error(f"Could not load data: {e}")
         st.stop()
-elif source == "Upload a CSV":
-    st.markdown("#### 📄 Upload your accounts (CSV) — no coding needed")
-    import os
-    import tempfile
+elif source.startswith("📄"):
+    st.markdown("#### 📄 Upload your accounts — no coding needed")
     with open("subscription_accounts.csv") as _tf:
         st.download_button("⬇️ Download CSV template", _tf.read(), "accounts_template.csv", "text/csv")
     st.caption("Open the template in Excel or Google Sheets, keep the column headers, add one row per "
-               "customer, save as **.csv**, then upload it below. Bad rows are flagged, never faked.")
-    up = st.file_uploader("Upload your customer accounts (CSV)", type=["csv"])
+               "customer, save it, then upload below (**.csv or .xlsx**). Bad rows are flagged, never faked.")
+    up = st.file_uploader("Upload your customer accounts (CSV or Excel)", type=["csv", "xlsx", "xls"])
     if up is None:
-        st.info("⬆️ Upload a CSV to continue, or pick **Sample file** in the sidebar to see it working.")
+        st.info("⬆️ Upload a file to continue, or pick **Public sandbox** in the sidebar to see it working.")
         st.stop()
-    _tmp = tempfile.NamedTemporaryFile(suffix=".csv", delete=False)
-    _tmp.write(up.getvalue())
-    _tmp.close()
     try:
-        _res = load(_tmp.name, CFG, report_path="/tmp/p1_upload_report.json")
-        accounts, report = _res["accounts"], _res["report"]
+        accounts, report = _accounts_from_df(read_upload(up))
     except Exception as e:  # noqa: BLE001
-        st.error(f"Could not read that CSV: {e}")
+        st.error(f"Could not read that file: {e}")
         st.stop()
-    finally:
-        os.unlink(_tmp.name)
     st.success(f"Loaded {len(accounts)} account(s) from your file.")
+elif source.startswith("🔗"):
+    st.markdown("#### 🔗 Load from a Google Sheet")
+    st.caption("In Google Sheets: **Share → General access → Anyone with the link → Viewer**, copy the "
+               "link, paste it below. Use the same column headers as the template.")
+    url = st.text_input("Paste your Google Sheet link", placeholder="https://docs.google.com/spreadsheets/d/…")
+    if not url:
+        st.info("Paste a public Google Sheet link to continue.")
+        st.stop()
+    try:
+        accounts, report = _accounts_from_df(fetch_gsheet(url))
+    except Exception as e:  # noqa: BLE001
+        st.error(f"Couldn't read that sheet: {e}")
+        st.stop()
+    st.success(f"Loaded {len(accounts)} account(s) from your Google Sheet.")
 else:
     st.markdown("#### 🔌 Connect a database — no manual entry")
     st.caption("`SQLConnector` runs against any DB-API connection (Snowflake/Postgres/BigQuery/Redshift "
