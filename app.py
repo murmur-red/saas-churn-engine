@@ -60,7 +60,6 @@ def _demo_db():
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&display=swap');
 .stApp { background:
     radial-gradient(1100px 500px at 85% -8%, rgba(225,29,72,.06), transparent 60%),
     radial-gradient(900px 420px at 0% 0%, rgba(153,27,27,.04), transparent 55%), #fbf9f9; }
