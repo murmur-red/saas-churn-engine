@@ -12,6 +12,10 @@ Most churn tools hand you a black-box "risk score" you can't audit. This does th
 traceable to a signal you chose, with **no model you have to trust**. The churn math is pure standard
 library; AI is used only to help you *onboard* your data, never to decide the verdict.
 
+### ▶ [Live demo — churn.murmur.red](https://churn.murmur.red)
+
+![Deterministic churn engine — signals, risk bands, cadence recommendations](docs/dashboard.png)
+
 > Part of the **murmur.red** portfolio · sibling project → [**ai-spend-control**](https://github.com/murmur-red/ai-spend-control) (the buy-side of the same coin).
 
 ---
