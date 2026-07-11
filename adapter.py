@@ -78,6 +78,8 @@ def load(csv_path: str, config, report_path: str | None = None) -> dict[str, Any
         "counts": {"accepted": len(accounts), "rejected": len(rejected), "warned": 0},
         "rejected": rejected,
     }
-    out = Path(report_path or (path.parent / "validation_report.json"))
-    out.write_text(json.dumps(report, indent=2))
+    # Privacy: only persist the report when a caller explicitly asks (e.g. CLI/tests). The app passes
+    # report_path=None so uploaded customer data stays in memory and is never written to disk.
+    if report_path is not None:
+        Path(report_path).write_text(json.dumps(report, indent=2))
     return {"accounts": accounts, "report": report}

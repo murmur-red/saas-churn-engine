@@ -7,6 +7,7 @@ selection (deselected/absent signals drop out and lower coverage).
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 
 import pandas as pd
@@ -33,7 +34,7 @@ CFG = SaasConfig()
 
 @st.cache_data(show_spinner=False)
 def _load(csv: str):
-    res = load(csv, CFG, report_path="/tmp/p1_validation_report.json")
+    res = load(csv, CFG)   # in-memory only — no report written to disk
     return res["accounts"], res["report"]
 
 
@@ -199,7 +200,7 @@ def _accounts_from_df(df):
     df.to_csv(_tmp.name, index=False)
     _tmp.close()
     try:
-        _res = load(_tmp.name, CFG, report_path="/tmp/p1_upload_report.json")
+        _res = load(_tmp.name, CFG)   # in-memory only — no report written to disk
         return _res["accounts"], _res["report"]
     finally:
         os.unlink(_tmp.name)
@@ -248,6 +249,11 @@ else:
                "unmapped columns just lower coverage, never faked.")
     qcol, mcol = st.columns(2)
     query = qcol.text_area("SQL query (returns one row per account)", DEMO_QUERY, height=110)
+    _q = query.strip().rstrip(";").lower()
+    if not _q.startswith("select") or ";" in _q or re.search(
+            r"\b(attach|pragma|insert|update|delete|drop|create|alter|replace|vacuum|reindex)\b", _q):
+        qcol.error("Only a single read-only SELECT is allowed here.")
+        st.stop()
     if "p1_mapping" not in st.session_state:
         st.session_state["p1_mapping"] = json.dumps(DEMO_MAPPING, indent=2)
     byok = qcol.text_input("Your Anthropic API key (bring-your-own — never stored, used only for this call)",
